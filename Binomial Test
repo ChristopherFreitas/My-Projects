@@ -1,0 +1,30 @@
+from scipy.stats import binom
+
+# Defining the parameters
+X = 9
+N = 18
+P = 0.2
+
+# Binomial test for one-sided - greater than
+p_value_upper = 1 - binom.cdf(X - 1, N, P)
+
+# Displaying the result
+print("\nExact binomial test (upper-tail)")
+print(f"data: {X} and {N}")
+print(f"number of successes = {X}, number of trials = {N}, p-value = {p_value_upper:.6f}")
+
+# Binomial test for one-sided - less than
+p_value_lower = binom.cdf(X, N, P)
+
+# Displaying the result
+print("\nExact binomial test (lower-tail)")
+print(f"data: {X} and {N}")
+print(f"number of successes = {X}, number of trials = {N}, p-value = {p_value_lower:.6f}")
+
+# Binomial test for two-sided
+p_value_bilateral = min(p_value_lower, p_value_upper)
+
+# Displaying the result
+print("\nExact binomial test (bilateral)")
+print(f"data: {X} and {N}")
+print(f"number of successes = {X}, number of trials = {N}, p-value = {p_value_bilateral:.6f}")
