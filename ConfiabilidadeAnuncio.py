@@ -49,13 +49,19 @@ def definirObjeto(imagem):
                 confidences.append(confidences)
     return list(set(labels))
 
-
 def baixar_imagem(url):
-    resposta = requests.get(url)
-    imagemNP = np.array(bytearray(resposta.content), dtype=np.uint8)
-    imagem = cv2.imdecode(imagemNP, cv2.IMREAD_COLOR)
-    return imagem
-
+    try:
+        resposta = requests.get(url, timeout=10)
+        if resposta.status_code == 200 and resposta.content:
+            imagemNP = np.array(bytearray(resposta.content), dtype=np.uint8)
+            imagem = cv2.imdecode(imagemNP, cv2.IMREAD_COLOR)
+            return imagem
+        else:
+            print(f"Erro ao baixar a imagem: {url} - Código HTTP: {resposta.status_code}")
+            return None
+    except requests.exceptions.RequestException as e:
+        print(f"Exceção ao baixar a imagem: {url} - Erro: {e}")
+        return None
 
 def ehRelacionado(titulo, labels):
 
@@ -81,34 +87,45 @@ def ehRelacionado(titulo, labels):
 def pegarInfo(link, driver):
     driver.get(link)
 
-    h1 = WebDriverWait(driver, 10).until(
-        EC.presence_of_element_located((By.TAG_NAME, 'h1'))
+    WebDriverWait(driver, 10).until(
+        EC.presence_of_all_elements_located((By.TAG_NAME, 'img'))
     )
+    anuncio = driver.find_elements(By.TAG_NAME, 'img')
 
-    imagens = WebDriverWait(driver, 10).until(
-        EC.presence_of_element_located((By.CLASS_NAME, 'image'))
-    )
-
-    titulo = h1.text
-    imagemUrl = imagens.get_attribute('src')
+    titulo = [img.get_attribute('alt') for img in anuncio]
+    imagemUrl = [img.get_attribute('src') for img in anuncio]
 
     return (titulo, imagemUrl)
 
-
 if __name__ == '__main__':
+
     driver = webdriver.Edge()
 
-    url = input('Qual o link do anúnico:')
-    titulo, imagemUrl = pegarInfo(url, driver)
-    imagem = baixar_imagem(imagemUrl)
+    try:
+        url = input('Qual o link do anúncio: ')
 
-    if imagem is None:
-        raise Exception("Não foi possível baixar a imagem.")
+        titulos, imagemUrls = pegarInfo(url, driver)
 
-    outputLabel = definirObjeto(imagem)
-    if len(outputLabel) == 0:
-        raise Exception("Não foi possível identificar o objeto.")
+        for i, (titulo, imagemUrl) in enumerate(zip(titulos, imagemUrls), start=1):
+            print(f"\nProcessando o item {i}...")
 
-    resultado = ehRelacionado(titulo, outputLabel)
-    print(resultado.content)
-    print(outputLabel)
+            imagem = baixar_imagem(imagemUrl)
+            if imagem is None:
+                print(f"Imagem {i}: Não foi possível baixar a imagem.")
+                continue
+
+            outputLabel = definirObjeto(imagem)
+            if len(outputLabel) == 0:
+                print(f"Imagem {i}: Não foi possível identificar o objeto.")
+                continue
+
+            resultado = ehRelacionado(titulo, outputLabel)
+
+            print(f"Resultado para o item {i}:")
+            print(f"Título: {titulo}")
+            print(f"Output Label: {outputLabel}")
+            print(f"Relacionamento: {resultado.content}")
+
+    finally:
+        driver.quit()
+
